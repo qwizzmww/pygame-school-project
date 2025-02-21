@@ -12,7 +12,7 @@ background = pygame.image.load('background.png')
 mixer.music.load("background.wav")
 mixer.music.play(-1)
 
-pygame.display.set_caption("Space Invader")
+pygame.display.set_caption("Star Wars")
 icon = pygame.image.load('spaceship.png')
 pygame.display.set_icon(icon)
 
@@ -29,6 +29,7 @@ bulletY_change = 10
 bullet_state = "ready"
 
 score_value = 0
+best_score = 0  # Variable to store the best score
 font = pygame.font.Font('freesansbold.ttf', 32)
 textX = 10
 testY = 10
@@ -54,9 +55,16 @@ def show_score(x, y):
     score = font.render("Score : " + str(score_value), True, (255, 255, 255))
     screen.blit(score, (x, y))
 
+def show_best_score(x, y):
+    best_score_text = font.render("Best Score : " + str(best_score), True, (255, 255, 255))
+    screen.blit(best_score_text, (x, y))
+
 def game_over_text():
     over_text = over_font.render("GAME OVER", True, (255, 255, 255))
     screen.blit(over_text, (200, 250))
+    
+    # Display best score at the bottom of the screen
+    show_best_score(250, 350)
 
 def level_text():
     level_msg = font.render(f"Level {level}", True, (255, 255, 255))
@@ -82,13 +90,21 @@ def isCollision(enemyX, enemyY, bulletX, bulletY):
 
 def main_menu():
     screen.fill((0, 0, 0))
-    title = menu_font.render("Space Invader", True, (255, 255, 255))
+    
+    title = menu_font.render("The Beka Wars Game", True, (255, 255, 255))
     start_button = menu_font.render("Start Game", True, (255, 255, 255))
     quit_button = menu_font.render("Quit", True, (255, 255, 255))
     
-    screen.blit(title, (250, 150))
-    screen.blit(start_button, (300, 250))
-    screen.blit(quit_button, (320, 350))
+    title_x = (800 - title.get_width()) // 2
+    start_button_x = (800 - start_button.get_width()) // 2
+    quit_button_x = (800 - quit_button.get_width()) // 2
+    title_y = 150
+    start_button_y = 250
+    quit_button_y = 350
+
+    screen.blit(title, (title_x, title_y))
+    screen.blit(start_button, (start_button_x, start_button_y))
+    screen.blit(quit_button, (quit_button_x, quit_button_y))
     
     pygame.display.update()
 
@@ -120,6 +136,15 @@ def show_timer():
     seconds = (remaining_time // 1000) % 60
     timer_text = font.render(f"Time: {minutes:02}:{seconds:02}", True, (255, 255, 255))
     screen.blit(timer_text, (10, 50))
+
+def restart_game():
+    global score_value, level, num_of_enemies, best_score
+    score_value = 0
+    level = 1
+    num_of_enemies = 6
+    initialize_enemies()
+    start_ticks = pygame.time.get_ticks()
+    best_score = max(best_score, score_value) 
 
 running = True
 in_game = False
@@ -210,7 +235,6 @@ while running:
         player(playerX, playerY)
         show_score(textX, testY)
         level_text()
-
         show_timer()
 
         if score_value >= level * 10:
@@ -226,9 +250,18 @@ while running:
 
         if pygame.time.get_ticks() - start_ticks >= max_time:
             game_over_text()
+            restart_button = menu_font.render("Restart Game", True, (255, 255, 255))
+            restart_button_x = (800 - restart_button.get_width()) // 2
+            restart_button_y = 450
+            screen.blit(restart_button, (restart_button_x, restart_button_y))
             pygame.display.update()
-            pygame.time.delay(2000)
-            running = False
+            for event in pygame.event.get():
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouseX, mouseY = pygame.mouse.get_pos()
+                    if restart_button_x <= mouseX <= restart_button_x + restart_button.get_width() and restart_button_y <= mouseY <= restart_button_y + restart_button.get_height():
+                        restart_game()
+                        in_game = False
+                        break
 
         clock.tick(60)
 
