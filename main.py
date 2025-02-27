@@ -2,13 +2,25 @@ import math
 import random
 import pygame
 from pygame import mixer
+import json
+import os
 
 pygame.init()
 
+def load_best_score():
+    try:
+        with open('best_score.json', 'r') as f:
+            data = json.load(f)
+            return data.get('best_score', 0)
+    except FileNotFoundError:
+        return 0
+
+def save_best_score(score):
+    with open('best_score.json', 'w') as f:
+        json.dump({'best_score': score}, f)
+
 screen = pygame.display.set_mode((800, 600))
-
 background = pygame.image.load('background.png')
-
 mixer.music.load("background.wav")
 mixer.music.play(-1)
 
@@ -22,11 +34,8 @@ playerY = 480
 playerX_change = 0
 
 bulletImg = pygame.image.load('bullet.png')
-bulletX = 0
-bulletY = 480
-bulletX_change = 0
 bulletY_change = 10
-bullet_state = "ready"
+bullets = []
 
 score_value = 0
 font = pygame.font.Font('freesansbold.ttf', 32)
@@ -50,7 +59,7 @@ enemyY_change = []
 
 clock = pygame.time.Clock()
 
-best_score = 0  
+best_score = load_best_score()
 
 def show_score(x, y):
     score = font.render("Score : " + str(score_value), True, (255, 255, 255))
@@ -71,8 +80,6 @@ def enemy(x, y, i):
     screen.blit(enemyImg[i], (x, y))
 
 def fire_bullet(x, y):
-    global bullet_state
-    bullet_state = "fire"
     screen.blit(bulletImg, (x + 16, y + 10))
 
 def isCollision(enemyX, enemyY, bulletX, bulletY):
@@ -84,14 +91,28 @@ def isCollision(enemyX, enemyY, bulletX, bulletY):
 
 def main_menu():
     screen.fill((0, 0, 0))
-    title = menu_font.render("ZXC Star Wars", True, (255, 255, 255))
-    start_button = menu_font.render("Start Game", True, (255, 255, 255))
-    quit_button = menu_font.render("Quit", True, (255, 255, 255))
-    
+
+    mouseX, mouseY = pygame.mouse.get_pos()
+    start_button_rect = pygame.Rect(300, 250, 200, 50)
+    quit_button_rect = pygame.Rect(320, 350, 160, 50)
+    if start_button_rect.collidepoint(mouseX, mouseY):
+        start_button_color = (255, 0, 0)
+    else:
+        start_button_color = (255, 255, 255) 
+
+    if quit_button_rect.collidepoint(mouseX, mouseY):
+        quit_button_color = (255, 0, 0) 
+    else:
+        quit_button_color = (255, 255, 255)
+
+    title = menu_font.render("NIS GAME", True, (255, 255, 255))
+    start_button = menu_font.render("Start Game", True, start_button_color)
+    quit_button = menu_font.render("Quit", True, quit_button_color)
+
     screen.blit(title, (250, 150))
     screen.blit(start_button, (300, 250))
     screen.blit(quit_button, (320, 350))
-    
+
     pygame.display.update()
 
 def show_level_up_text():
@@ -164,7 +185,7 @@ while running:
     else:
         screen.fill((0, 0, 0))
         screen.blit(background, (0, 0))
-        
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -174,11 +195,12 @@ while running:
                 if event.key == pygame.K_RIGHT:
                     playerX_change = 5
                 if event.key == pygame.K_SPACE:
-                    if bullet_state == "ready":
+                    if len(bullets) == 0:
                         bulletSound = mixer.Sound("laser.wav")
                         bulletSound.play()
-                        bulletX = playerX
-                        fire_bullet(bulletX, bulletY)
+                    for i in range(3): 
+                        bulletX_offset = i * 20
+                        bullets.append([playerX + 16 + bulletX_offset, playerY])
 
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
@@ -196,7 +218,9 @@ while running:
                     enemyY[j] = 2000
                 game_over_text()
                 restart_menu()  
-                best_score = max(best_score, score_value)
+                if score_value > best_score:
+                    best_score = score_value
+                    save_best_score(best_score)
                 break
 
             enemyX[i] += enemyX_change[i]
@@ -207,25 +231,24 @@ while running:
                 enemyX_change[i] = -4
                 enemyY[i] += enemyY_change[i]
 
-            collision = isCollision(enemyX[i], enemyY[i], bulletX, bulletY)
-            if collision:
-                explosionSound = mixer.Sound("explosion.wav")
-                explosionSound.play()
-                bulletY = 480
-                bullet_state = "ready"
-                score_value += 1
-                enemyX[i] = random.randint(0, 736)
-                enemyY[i] = random.randint(50, 150)
+            for bullet in bullets[:]:
+                collision = isCollision(enemyX[i], enemyY[i], bullet[0], bullet[1])
+                if collision:
+                    explosionSound = mixer.Sound("explosion.wav")
+                    explosionSound.play()
+                    bullets.remove(bullet)
+                    score_value += 1
+                    enemyX[i] = random.randint(0, 736)
+                    enemyY[i] = random.randint(50, 150)
 
             enemy(enemyX[i], enemyY[i], i)
 
-        if bulletY <= 0:
-            bulletY = 480
-            bullet_state = "ready"
-
-        if bullet_state == "fire":
-            fire_bullet(bulletX, bulletY)
-            bulletY -= bulletY_change
+        for bullet in bullets[:]:
+            bullet[1] -= bulletY_change
+            if bullet[1] <= 0:
+                bullets.remove(bullet)
+            else:
+                fire_bullet(bullet[0], bullet[1])
 
         player(playerX, playerY)
         show_score(textX, testY)
@@ -233,7 +256,7 @@ while running:
 
         show_timer()
 
-        if score_value >= level * 10:
+        if score_value >= level * 30:
             level += 1
             num_of_enemies += 2
             initialize_enemies()
@@ -247,7 +270,9 @@ while running:
         if pygame.time.get_ticks() - start_ticks >= max_time:
             game_over_text()
             restart_menu()  
-            best_score = max(best_score, score_value)  
+            if score_value > best_score:
+                best_score = score_value
+                save_best_score(best_score)
             pygame.display.update()
             pygame.time.delay(2000)
             running = False
