@@ -84,7 +84,7 @@ def isCollision(enemyX, enemyY, bulletX, bulletY):
 
 def main_menu():
     screen.fill((0, 0, 0))
-    title = menu_font.render("Star Wars", True, (255, 255, 255))
+    title = menu_font.render("ZXC Star Wars", True, (255, 255, 255))
     start_button = menu_font.render("Start Game", True, (255, 255, 255))
     quit_button = menu_font.render("Quit", True, (255, 255, 255))
     
